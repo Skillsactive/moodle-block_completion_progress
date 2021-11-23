@@ -121,7 +121,9 @@ class overview_table extends \table_sql implements dynamic_table {
       $headers = [];
       $columns = [];
 
-      $bulkoperations = has_capability('moodle/course:bulkmessaging', $this->context);
+      //$bulkoperations = has_capability('moodle/course:bulkmessaging', $this->context);
+      // SA DISABLE BULK OPERATIONS
+      $bulkoperations = false;
       if ($bulkoperations) {
           $mastercheckbox = new \core\output\checkbox_toggleall('participants-table', true, [
               'id' => 'select-all-participants',
@@ -178,7 +180,8 @@ class overview_table extends \table_sql implements dynamic_table {
       }
 
       // Hide Suspended users
-      if (get_config('block_completion_progress', 'showinactive') !== "1") {
+      //if (get_config('block_completion_progress', 'showinactive') !== "1" ) { SA CHANGES
+      if (get_config('block_completion_progress', 'showinactive') !== "1" && (!has_capability('moodle/course:viewsuspendedusers', $this->context))) {
         $enrolled = get_enrolled_users($this->context, null, null, 'u.id', null, null, null, true);
         $enrolarray = [];
         foreach ($enrolled as $userenrolled) {

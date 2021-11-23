@@ -56,13 +56,15 @@ $group    = optional_param('group', 0, PARAM_ALPHANUMEXT); // Group selected.
 // Determine course and context.
 $course = $DB->get_record('course', array('id' => $courseid), '*', MUST_EXIST);
 $context = context_course::instance($courseid);
-
+/*
 $notesallowed = !empty($CFG->enablenotes) && has_capability('moodle/notes:manage', $context);
 $messagingallowed = !empty($CFG->messaging) && has_capability('moodle/site:sendmessage', $context);
 $bulkoperations = ($CFG->version >= 2017111300.00) &&
     has_capability('moodle/course:bulkmessaging', $context) && (
         $notesallowed || $messagingallowed
-    );
+    );*/
+//SA DISABLE BULK MESSAGING AND NOTES
+$bulkoperations = false;
 
 // Find the role to display, defaulting to students.
 $sql = "SELECT DISTINCT r.id, r.name, r.archetype
@@ -132,6 +134,36 @@ $groupidnums = array();
 $groupingids = array();
 $groups = groups_get_all_groups($course->id, $groupuserid);
 $groupings = ($groupuserid == 0 ? groups_get_all_groupings($course->id) : []);
+
+// =========== CUSTOM SA CODE ===========
+// Ignore any groups where this user is not an assessor
+
+/* Remove group id from groups where !has_capability('moodle/site:accessallgroups'
+ * AND user + group is not in role_assignments_custom table
+ */
+if (!has_capability('moodle/site:accessallgroups', $context)) {
+    foreach($groups as $key => $g) {
+
+        $sql = "SELECT groupid
+            FROM {role_assignments_custom} rac
+            WHERE rac.groupid = :groupid
+            AND rac.userid = :userid
+            AND rac.courseid = :courseid";
+        $gpparams = array(
+            'groupid'   => $g->id,
+            'userid'    => $USER->id,
+            'courseid'  => $courseid
+        );
+        $checkassessor = $DB->record_exists_sql($sql, $gpparams);
+
+        if (!$checkassessor) {
+            unset($groups[$key]);
+        }
+    }
+}
+
+// =========== E/O CUSTOM SA CODE ===========
+
 if (!empty($groups) || !empty($groupings)) {
     $groupstodisplay = ($groupuserid == 0 ? array(0 => get_string('allparticipants')) : []);
     foreach ($groups as $groupidnum => $groupobject) {
